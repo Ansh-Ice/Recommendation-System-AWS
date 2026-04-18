@@ -1,7 +1,7 @@
 """Flask application entry point for the movie recommendation API."""
 
 import logging
-
+from flask_cors import CORS
 from flask import Flask, jsonify, request
 
 try:
@@ -30,6 +30,7 @@ def create_app() -> Flask:
     logger = logging.getLogger(__name__)
 
     app = Flask(__name__)
+    CORS(app, origins=["http://localhost:5173"])
 
     # Load the model artifacts once during startup so every request can reuse them.
     recommender = RecommendationService(
