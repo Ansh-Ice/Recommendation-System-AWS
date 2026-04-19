@@ -17,12 +17,21 @@ function HomePage() {
   const [suggestionsError, setSuggestionsError] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const latestSuggestionRequest = useRef(0);
+  const suggestionCache = useRef(new Map());
 
   useEffect(() => {
     const trimmedMovieName = movieName.trim();
+    const normalizedQuery = trimmedMovieName.toLowerCase();
 
     if (!showSuggestions || trimmedMovieName.length < 2) {
       setSuggestions([]);
+      setSuggestionsLoading(false);
+      setSuggestionsError("");
+      return undefined;
+    }
+
+    if (suggestionCache.current.has(normalizedQuery)) {
+      setSuggestions(suggestionCache.current.get(normalizedQuery));
       setSuggestionsLoading(false);
       setSuggestionsError("");
       return undefined;
@@ -45,7 +54,9 @@ function HomePage() {
           return;
         }
 
-        setSuggestions(data.results ?? []);
+        const nextSuggestions = (data.results ?? []).slice(0, 10);
+        suggestionCache.current.set(normalizedQuery, nextSuggestions);
+        setSuggestions(nextSuggestions);
       } catch (requestError) {
         if (requestError.name === "AbortError") {
           return;
@@ -70,7 +81,7 @@ function HomePage() {
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [movieName]);
+  }, [movieName, showSuggestions]);
 
   const runRecommendationSearch = async (selectedMovieName) => {
     const trimmedMovieName = selectedMovieName.trim();

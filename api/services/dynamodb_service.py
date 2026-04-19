@@ -4,6 +4,7 @@ import logging
 from typing import Dict, Iterable, List, Optional
 
 import boto3
+from boto3.dynamodb.conditions import Attr
 
 
 class DynamoDBService:
@@ -74,17 +75,21 @@ class DynamoDBService:
     def search_movies(self, query: str, limit: int = 10) -> List[Dict]:
         """Return movie suggestions whose titles contain the supplied text."""
         normalized_query = query.strip()
-        if not normalized_query:
+        if len(normalized_query) < 2:
             return []
+        filter_expression = Attr("title").contains(normalized_query)
+        title_case_query = normalized_query.title()
+        if title_case_query != normalized_query:
+            filter_expression = filter_expression | Attr("title").contains(
+                title_case_query
+            )
 
-        items = self._scan_movies(
-            projection_expression="movie_id, title, genres, overview, poster_url"
+        response = self._get_movies_table().scan(
+            FilterExpression=filter_expression,
+            ProjectionExpression="movie_id, title, genres, overview, poster_url",
+            Limit=limit,
         )
-        matches = [
-            item
-            for item in items
-            if normalized_query.lower() in str(item.get("title", "")).lower()
-        ]
+        matches = response.get("Items", [])
 
         ranked_items = sorted(
             matches,

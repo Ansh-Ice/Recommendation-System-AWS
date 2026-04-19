@@ -80,6 +80,8 @@ def create_app() -> Flask:
         query = request.args.get("query", "").strip()
         if not query:
             return jsonify({"error": "Missing required query parameter: query"}), 400
+        if len(query) < 2:
+            return jsonify({"query": query, "results": []}), 200
 
         try:
             matches = metadata_store.search_movies(query)

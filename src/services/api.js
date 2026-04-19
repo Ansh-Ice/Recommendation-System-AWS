@@ -20,7 +20,12 @@ export async function fetchRecommendations(movieName) {
 }
 
 export async function fetchMovieSuggestions(query, options = {}) {
-  const requestUrl = `${BASE_URL}/search?query=${encodeURIComponent(query)}`;
+  const trimmedQuery = query.trim();
+  if (trimmedQuery.length < 2) {
+    return { query: trimmedQuery, results: [] };
+  }
+
+  const requestUrl = `${BASE_URL}/search?query=${encodeURIComponent(trimmedQuery)}`;
 
   const response = await fetch(requestUrl, {
     method: "GET",
@@ -36,5 +41,8 @@ export async function fetchMovieSuggestions(query, options = {}) {
     throw new Error(data.error || "Unable to fetch movie suggestions.");
   }
 
-  return data;
+  return {
+    ...data,
+    results: Array.isArray(data.results) ? data.results.slice(0, 10) : [],
+  };
 }
