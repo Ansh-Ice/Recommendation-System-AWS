@@ -16,6 +16,10 @@ function MovieList({ movies }) {
       <div className="movie-grid">
         {movies.map((movie, index) => {
           const title = typeof movie === "string" ? movie : movie.title;
+          const overview =
+            typeof movie === "string"
+              ? "No description available"
+              : movie.overview || "No description available";
           const posterSource =
             typeof movie === "string"
               ? PLACEHOLDER_POSTER
@@ -34,6 +38,7 @@ function MovieList({ movies }) {
               />
               <div className="movie-card__content">
                 <h3 className="movie-card__title">{title}</h3>
+                <p className="movie-card__overview">{overview}</p>
               </div>
             </article>
           );
