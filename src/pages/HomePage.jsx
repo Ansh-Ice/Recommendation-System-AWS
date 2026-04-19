@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MovieInput from "../components/MovieInput";
 import MovieList from "../components/MovieList";
-import { fetchRecommendations } from "../services/api";
+import {
+  fetchMovieSuggestions,
+  fetchRecommendations,
+} from "../services/api";
 
 function HomePage() {
   const [movieName, setMovieName] = useState("");
@@ -9,11 +12,68 @@ function HomePage() {
   const [searchedMovie, setSearchedMovie] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const latestSuggestionRequest = useRef(0);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
+  useEffect(() => {
     const trimmedMovieName = movieName.trim();
+
+    if (!showSuggestions || trimmedMovieName.length < 2) {
+      setSuggestions([]);
+      setSuggestionsLoading(false);
+      setSuggestionsError("");
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const requestId = latestSuggestionRequest.current + 1;
+    latestSuggestionRequest.current = requestId;
+
+    const timeoutId = window.setTimeout(async () => {
+      setSuggestionsLoading(true);
+      setSuggestionsError("");
+
+      try {
+        const data = await fetchMovieSuggestions(trimmedMovieName, {
+          signal: controller.signal,
+        });
+
+        if (latestSuggestionRequest.current !== requestId) {
+          return;
+        }
+
+        setSuggestions(data.results ?? []);
+      } catch (requestError) {
+        if (requestError.name === "AbortError") {
+          return;
+        }
+
+        if (latestSuggestionRequest.current !== requestId) {
+          return;
+        }
+
+        setSuggestions([]);
+        setSuggestionsError(
+          requestError.message || "Unable to load movie suggestions right now.",
+        );
+      } finally {
+        if (latestSuggestionRequest.current === requestId) {
+          setSuggestionsLoading(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [movieName]);
+
+  const runRecommendationSearch = async (selectedMovieName) => {
+    const trimmedMovieName = selectedMovieName.trim();
     if (!trimmedMovieName) {
       setRecommendations([]);
       setSearchedMovie("");
@@ -21,9 +81,12 @@ function HomePage() {
       return;
     }
 
+    setShowSuggestions(false);
     setLoading(true);
     setError("");
     setRecommendations([]);
+    setSuggestions([]);
+    setSuggestionsError("");
     setSearchedMovie(trimmedMovieName);
 
     try {
@@ -35,6 +98,22 @@ function HomePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    await runRecommendationSearch(movieName);
+  };
+
+  const handleSuggestionSelect = async (selectedTitle) => {
+    setMovieName(selectedTitle);
+    await runRecommendationSearch(selectedTitle);
+  };
+
+  const handleMovieNameChange = (value) => {
+    setMovieName(value);
+    setShowSuggestions(true);
+    setSuggestionsError("");
   };
 
   return (
@@ -53,9 +132,13 @@ function HomePage() {
       <div className="content-panel">
         <MovieInput
           value={movieName}
-          onChange={setMovieName}
+          onChange={handleMovieNameChange}
           onSubmit={handleSubmit}
           loading={loading}
+          suggestions={suggestions}
+          suggestionsLoading={suggestionsLoading}
+          suggestionsError={suggestionsError}
+          onSuggestionSelect={handleSuggestionSelect}
         />
 
         {loading ? <p className="status-message">Loading recommendations...</p> : null}
