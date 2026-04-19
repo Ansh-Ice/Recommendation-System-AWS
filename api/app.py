@@ -31,10 +31,10 @@ TMDB_POSTER_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
 
 @lru_cache(maxsize=256)
-def get_poster(movie_title: str) -> str:
-    """Fetch and cache a poster URL for the supplied movie title."""
+def get_movie_details(movie_title: str) -> dict:
+    """Fetch and cache poster and overview data for the supplied movie title."""
     if not movie_title.strip():
-        return ""
+        return {"poster": "", "overview": ""}
 
     try:
         response = requests.get(
@@ -46,17 +46,23 @@ def get_poster(movie_title: str) -> str:
         data = response.json()
     except requests.RequestException:
         logging.getLogger(__name__).exception(
-            "Unable to fetch poster from TMDB for '%s'.", movie_title
+            "Unable to fetch movie details from TMDB for '%s'.", movie_title
         )
-        return ""
+        return {"poster": "", "overview": ""}
 
     results = data.get("results", [])
     if results:
-        poster_path = results[0].get("poster_path")
+        movie = results[0]
+        poster_path = movie.get("poster_path")
+        overview = movie.get("overview") or ""
         if poster_path:
-            return f"{TMDB_POSTER_BASE_URL}/{poster_path.lstrip('/')}"
+            return {
+                "poster": f"{TMDB_POSTER_BASE_URL}/{poster_path.lstrip('/')}",
+                "overview": overview,
+            }
+        return {"poster": "", "overview": overview}
 
-    return ""
+    return {"poster": "", "overview": ""}
 
 
 def create_app() -> Flask:
@@ -174,23 +180,15 @@ def create_app() -> Flask:
 
             for title in recommended_titles:
                 metadata = metadata_by_title.get(title.strip().lower())
-                if metadata:
-                    poster_url = metadata.get("poster_url") or get_poster(title)
-                    recommendations.append(metadata)
-                    recommendations[-1]["poster"] = poster_url
-                    recommendations[-1]["poster_url"] = poster_url
-                else:
-                    poster_url = get_poster(title)
-                    recommendations.append(
-                        {
-                            "title": title,
-                            "poster": poster_url,
-                            "poster_url": poster_url,
-                            "overview": "",
-                            "genres": [],
-                            "tags": "",
-                        }
-                    )
+                details = get_movie_details(title)
+                recommendations.append(
+                    {
+                        "title": title,
+                        "poster": details["poster"],
+                        "overview": details["overview"]
+                        or (metadata.get("overview", "") if metadata else ""),
+                    }
+                )
 
             return (
                 jsonify(
