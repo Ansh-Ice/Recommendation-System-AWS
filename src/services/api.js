@@ -1,4 +1,4 @@
-const BASE_URL = "http://13.60.44.173:5000";
+import { BASE_URL } from "../config";
 
 export async function fetchRecommendations(movieName) {
   const requestUrl = `${BASE_URL}/recommend?movie=${encodeURIComponent(movieName)}`;
