@@ -76,6 +76,7 @@ input {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .navbar__link {
@@ -89,6 +90,26 @@ input {
 .navbar__link--active {
   background: #132238;
   color: #ffffff;
+}
+
+.navbar__user {
+  padding: 0.55rem 0.3rem;
+  color: #53667d;
+  font-weight: 600;
+}
+
+.navbar__logout {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.6rem 0.95rem;
+  background: rgba(19, 34, 56, 0.08);
+  color: #132238;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.navbar__logout:hover {
+  background: rgba(19, 34, 56, 0.14);
 }
 
 .page {
@@ -160,6 +181,32 @@ input {
 .content-panel--narrow {
   max-width: 760px;
   margin: 0 auto;
+}
+
+.auth-panel {
+  margin-top: 2rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.auth-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.auth-actions__secondary {
+  border: 1px solid rgba(19, 34, 56, 0.12);
+  border-radius: 14px;
+  padding: 0.95rem 1.25rem;
+  background: #ffffff;
+  color: #132238;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .search-panel {

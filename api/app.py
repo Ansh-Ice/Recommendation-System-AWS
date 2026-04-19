@@ -117,6 +117,51 @@ def create_app() -> Flask:
             logger.exception("Unexpected error while adding movies to DynamoDB.")
             return jsonify({"error": "Unable to add movie data."}), 500
 
+    @app.post("/signup")
+    def signup():
+        """Create a new user account in DynamoDB."""
+        payload = request.get_json(silent=True)
+        if not payload:
+            return jsonify({"error": "Request body must be valid JSON."}), 400
+
+        user_id = str(payload.get("user_id", "")).strip()
+        password = str(payload.get("password", ""))
+
+        if not user_id or not password:
+            return jsonify({"error": "Missing required fields"}), 400
+
+        try:
+            metadata_store.create_user(user_id, password)
+            return jsonify({"message": "Signup successful", "user_id": user_id}), 201
+        except ValueError as exc:
+            if str(exc) == "User already exists.":
+                return jsonify({"error": str(exc)}), 409
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            logger.exception("Unexpected error while signing up a user.")
+            return jsonify({"error": "Unable to create user."}), 500
+
+    @app.post("/login")
+    def login():
+        """Validate a user login against DynamoDB."""
+        payload = request.get_json(silent=True)
+        if not payload:
+            return jsonify({"error": "Request body must be valid JSON."}), 400
+
+        user_id = str(payload.get("user_id", "")).strip()
+        password = str(payload.get("password", ""))
+
+        if not user_id or not password:
+            return jsonify({"error": "Invalid credentials"}), 401
+
+        try:
+            if metadata_store.validate_user(user_id, password):
+                return jsonify({"message": "Login successful", "user_id": user_id}), 200
+            return jsonify({"error": "Invalid credentials"}), 401
+        except Exception:
+            logger.exception("Unexpected error while logging in a user.")
+            return jsonify({"error": "Unable to login."}), 500
+
     @app.post("/like")
     def like_movie():
         """Store a liked movie for a user in DynamoDB."""

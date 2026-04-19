@@ -1,5 +1,29 @@
 import { BASE_URL } from "../config";
 
+export function getStoredUserId() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.localStorage.getItem("user_id") || "";
+}
+
+export function setStoredUserId(userId) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem("user_id", userId);
+}
+
+export function clearStoredUserId() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem("user_id");
+}
+
 export async function fetchRecommendations(movieName) {
   const requestUrl = `${BASE_URL}/recommend?movie=${encodeURIComponent(movieName)}`;
 
@@ -48,6 +72,7 @@ export async function fetchMovieSuggestions(query, options = {}) {
 }
 
 export async function likeMovie(movie, userId = "demo_user") {
+  const resolvedUserId = userId || getStoredUserId();
   const response = await fetch(`${BASE_URL}/like`, {
     method: "POST",
     headers: {
@@ -55,7 +80,7 @@ export async function likeMovie(movie, userId = "demo_user") {
       Accept: "application/json",
     },
     body: JSON.stringify({
-      user_id: userId,
+      user_id: resolvedUserId,
       movie,
     }),
   });
@@ -70,12 +95,16 @@ export async function likeMovie(movie, userId = "demo_user") {
 }
 
 export async function fetchLikedMovies(userId = "demo_user") {
-  const response = await fetch(`${BASE_URL}/user/${encodeURIComponent(userId)}`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
+  const resolvedUserId = userId || getStoredUserId();
+  const response = await fetch(
+    `${BASE_URL}/user/${encodeURIComponent(resolvedUserId)}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
     },
-  });
+  );
 
   const data = await response.json().catch(() => ({}));
 
@@ -89,8 +118,9 @@ export async function fetchLikedMovies(userId = "demo_user") {
 }
 
 export async function fetchUserRecommendations(userId = "demo_user") {
+  const resolvedUserId = userId || getStoredUserId();
   const response = await fetch(
-    `${BASE_URL}/recommend/user/${encodeURIComponent(userId)}`,
+    `${BASE_URL}/recommend/user/${encodeURIComponent(resolvedUserId)}`,
     {
       method: "GET",
       headers: {
@@ -109,4 +139,48 @@ export async function fetchUserRecommendations(userId = "demo_user") {
     based_on: data.based_on || "",
     recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
   };
+}
+
+export async function loginUser(userId, password) {
+  const response = await fetch(`${BASE_URL}/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      password,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Invalid credentials");
+  }
+
+  return data;
+}
+
+export async function signupUser(userId, password) {
+  const response = await fetch(`${BASE_URL}/signup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      password,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Unable to create account.");
+  }
+
+  return data;
 }

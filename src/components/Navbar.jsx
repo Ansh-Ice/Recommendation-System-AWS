@@ -1,4 +1,5 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { clearStoredUserId, getStoredUserId } from "../services/api";
 
 const links = [
   { to: "/", label: "Home" },
@@ -6,6 +7,14 @@ const links = [
 ];
 
 function Navbar() {
+  const navigate = useNavigate();
+  const userId = getStoredUserId();
+
+  const handleLogout = () => {
+    clearStoredUserId();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <header className="navbar">
       <div className="navbar__inner">
@@ -14,18 +23,37 @@ function Navbar() {
         </NavLink>
 
         <nav className="navbar__links" aria-label="Main navigation">
-          {links.map((link) => (
+          {userId
+            ? links.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  end={link.to === "/"}
+                  className={({ isActive }) =>
+                    isActive ? "navbar__link navbar__link--active" : "navbar__link"
+                  }
+                >
+                  {link.label}
+                </NavLink>
+              ))
+            : null}
+
+          {userId ? <span className="navbar__user">{userId}</span> : null}
+
+          {userId ? (
+            <button className="navbar__logout" type="button" onClick={handleLogout}>
+              Logout
+            </button>
+          ) : (
             <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.to === "/"}
+              to="/login"
               className={({ isActive }) =>
                 isActive ? "navbar__link navbar__link--active" : "navbar__link"
               }
             >
-              {link.label}
+              Login
             </NavLink>
-          ))}
+          )}
         </nav>
       </div>
     </header>

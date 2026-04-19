@@ -140,6 +140,36 @@ class DynamoDBService:
         response = self._get_users_table().get_item(Key={"user_id": user_id})
         return response.get("Item")
 
+    def create_user(self, user_id: str, password: str) -> Dict:
+        """Create a new user record with an empty liked movies list."""
+        normalized_user_id = user_id.strip()
+        if not normalized_user_id:
+            raise ValueError("user_id cannot be empty.")
+        if not password:
+            raise ValueError("password cannot be empty.")
+        if self.get_user(normalized_user_id):
+            raise ValueError("User already exists.")
+
+        user_record = {
+            "user_id": normalized_user_id,
+            "password": password,
+            "liked_movies": [],
+        }
+        self._get_users_table().put_item(Item=user_record)
+        return user_record
+
+    def validate_user(self, user_id: str, password: str) -> bool:
+        """Validate a user's credentials against DynamoDB."""
+        normalized_user_id = user_id.strip()
+        if not normalized_user_id or not password:
+            return False
+
+        user = self.get_user(normalized_user_id)
+        if not user:
+            return False
+
+        return str(user.get("password", "")) == password
+
     def like_movie(self, user_id: str, movie: Dict) -> Dict:
         """Store a liked movie for a user, avoiding duplicates."""
         normalized_user_id = user_id.strip()
@@ -167,6 +197,7 @@ class DynamoDBService:
 
         user_record = {
             "user_id": normalized_user_id,
+            "password": existing_user.get("password", ""),
             "liked_movies": liked_movies,
         }
         self._get_users_table().put_item(Item=user_record)

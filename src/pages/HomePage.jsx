@@ -6,13 +6,13 @@ import {
   fetchLikedMovies,
   fetchMovieSuggestions,
   fetchUserRecommendations,
+  getStoredUserId,
   likeMovie,
   fetchRecommendations,
 } from "../services/api";
 
-const DEMO_USER_ID = "demo_user";
-
 function HomePage() {
+  const userId = getStoredUserId();
   const [movieName, setMovieName] = useState("");
   const [recommendations, setRecommendations] = useState([]);
   const [searchedMovie, setSearchedMovie] = useState("");
@@ -105,8 +105,8 @@ function HomePage() {
 
     try {
       const [likedResponse, personalizedResponse] = await Promise.all([
-        fetchLikedMovies(DEMO_USER_ID),
-        fetchUserRecommendations(DEMO_USER_ID),
+        fetchLikedMovies(userId),
+        fetchUserRecommendations(userId),
       ]);
 
       const nextLikedMovies = likedResponse.liked_movies ?? [];
@@ -196,7 +196,7 @@ function HomePage() {
     setLikeMessage("");
 
     try {
-      await likeMovie(selectedMovie);
+      await likeMovie(selectedMovie, userId);
       const movieKey = getMovieKey(selectedMovie);
       setLikedMovieKeys((currentKeys) =>
         currentKeys.includes(movieKey) ? currentKeys : [...currentKeys, movieKey],
