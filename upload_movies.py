@@ -8,8 +8,8 @@ dynamodb = boto3.resource('dynamodb', region_name='eu-north-1')
 table = dynamodb.Table('movies')
 
 # Load datasets
-movies = pd.read_csv('tmdb_5000_movies.csv')
-credits = pd.read_csv('tmdb_5000_credits.csv')
+movies = pd.read_csv('datasets/tmdb_5000_movies.csv')
+credits = pd.read_csv('datasets/tmdb_5000_credits.csv')
 
 # Merge datasets
 movies = movies.merge(credits, on="title")
