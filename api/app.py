@@ -75,7 +75,7 @@ def create_app() -> Flask:
     logger = logging.getLogger(__name__)
 
     app = Flask(__name__)
-    CORS(app, origins=["http://localhost:5173"])
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
     # Load the model artifacts once during startup so every request can reuse them.
     recommender = RecommendationService(
