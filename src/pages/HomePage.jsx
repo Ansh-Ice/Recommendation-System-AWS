@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import MovieInput from "../components/MovieInput";
 import MovieList from "../components/MovieList";
+import MovieModal from "../components/MovieModal";
 import {
   fetchMovieSuggestions,
+  likeMovie,
   fetchRecommendations,
 } from "../services/api";
 
@@ -16,6 +18,11 @@ function HomePage() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestionsError, setSuggestionsError] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedMovie, setSelectedMovie] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [likedMovieKeys, setLikedMovieKeys] = useState([]);
+  const [likeLoading, setLikeLoading] = useState(false);
+  const [likeMessage, setLikeMessage] = useState("");
   const latestSuggestionRequest = useRef(0);
   const suggestionCache = useRef(new Map());
 
@@ -127,6 +134,59 @@ function HomePage() {
     setSuggestionsError("");
   };
 
+  const getMovieKey = (movie) => movie.movie_id || movie.title || "";
+
+  const handleMovieSelect = (movie) => {
+    setSelectedMovie(movie);
+    setLikeMessage("");
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setLikeLoading(false);
+    setLikeMessage("");
+  };
+
+  const handleLikeMovie = async () => {
+    if (!selectedMovie) {
+      return;
+    }
+
+    setLikeLoading(true);
+    setLikeMessage("");
+
+    try {
+      await likeMovie(selectedMovie);
+      const movieKey = getMovieKey(selectedMovie);
+      setLikedMovieKeys((currentKeys) =>
+        currentKeys.includes(movieKey) ? currentKeys : [...currentKeys, movieKey],
+      );
+      setLikeMessage("Movie saved to your likes.");
+    } catch (requestError) {
+      setLikeMessage(requestError.message || "Unable to save this movie right now.");
+    } finally {
+      setLikeLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showModal) {
+      return undefined;
+    }
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        handleCloseModal();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [showModal]);
+
   return (
     <section className="page page--home">
       <div className="hero">
@@ -162,8 +222,18 @@ function HomePage() {
           </p>
         ) : null}
 
-        <MovieList movies={recommendations} />
+        <MovieList movies={recommendations} onMovieSelect={handleMovieSelect} />
       </div>
+
+      <MovieModal
+        movie={selectedMovie}
+        isOpen={showModal}
+        onClose={handleCloseModal}
+        onLike={handleLikeMovie}
+        liking={likeLoading}
+        likeMessage={likeMessage}
+        isLiked={selectedMovie ? likedMovieKeys.includes(getMovieKey(selectedMovie)) : false}
+      />
     </section>
   );
 }

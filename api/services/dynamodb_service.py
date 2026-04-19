@@ -131,3 +131,43 @@ class DynamoDBService:
             for item in items
             if str(item.get("title", "")).strip().lower() in unique_titles
         }
+
+    def get_user(self, user_id: str) -> Optional[Dict]:
+        """Fetch a user record from the users table."""
+        if not user_id.strip():
+            return None
+
+        response = self._get_users_table().get_item(Key={"user_id": user_id})
+        return response.get("Item")
+
+    def like_movie(self, user_id: str, movie: Dict) -> Dict:
+        """Store a liked movie for a user, avoiding duplicates."""
+        normalized_user_id = user_id.strip()
+        if not normalized_user_id:
+            raise ValueError("user_id cannot be empty.")
+
+        existing_user = self.get_user(normalized_user_id) or {
+            "user_id": normalized_user_id,
+            "liked_movies": [],
+        }
+        liked_movies = list(existing_user.get("liked_movies", []))
+
+        movie_id = str(movie.get("movie_id", "")).strip()
+        movie_title = str(movie.get("title", "")).strip().lower()
+
+        already_liked = any(
+            str(liked_movie.get("movie_id", "")).strip() == movie_id
+            if movie_id
+            else str(liked_movie.get("title", "")).strip().lower() == movie_title
+            for liked_movie in liked_movies
+        )
+
+        if not already_liked:
+            liked_movies.append(movie)
+
+        user_record = {
+            "user_id": normalized_user_id,
+            "liked_movies": liked_movies,
+        }
+        self._get_users_table().put_item(Item=user_record)
+        return user_record

@@ -117,6 +117,30 @@ def create_app() -> Flask:
             logger.exception("Unexpected error while adding movies to DynamoDB.")
             return jsonify({"error": "Unable to add movie data."}), 500
 
+    @app.post("/like")
+    def like_movie():
+        """Store a liked movie for a user in DynamoDB."""
+        payload = request.get_json(silent=True)
+        if not payload:
+            return jsonify({"error": "Request body must be valid JSON."}), 400
+
+        user_id = str(payload.get("user_id", "")).strip()
+        movie = payload.get("movie")
+
+        if not user_id:
+            return jsonify({"error": "Missing required field: user_id"}), 400
+        if not isinstance(movie, dict) or not movie:
+            return jsonify({"error": "Missing required field: movie"}), 400
+
+        try:
+            metadata_store.like_movie(user_id, movie)
+            return jsonify({"message": "Movie liked successfully"}), 200
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            logger.exception("Unexpected error while liking a movie.")
+            return jsonify({"error": "Unable to store liked movie."}), 500
+
     @app.get("/search")
     def search_movies():
         """Return matching movie suggestions from DynamoDB."""

@@ -46,3 +46,25 @@ export async function fetchMovieSuggestions(query, options = {}) {
     results: Array.isArray(data.results) ? data.results.slice(0, 10) : [],
   };
 }
+
+export async function likeMovie(movie, userId = "demo_user") {
+  const response = await fetch(`${BASE_URL}/like`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      movie,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Unable to like this movie.");
+  }
+
+  return data;
+}
