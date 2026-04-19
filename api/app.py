@@ -141,6 +141,23 @@ def create_app() -> Flask:
             logger.exception("Unexpected error while liking a movie.")
             return jsonify({"error": "Unable to store liked movie."}), 500
 
+    @app.get("/user/<user_id>")
+    def get_user_liked_movies(user_id: str):
+        """Fetch liked movies for a user from DynamoDB."""
+        normalized_user_id = user_id.strip()
+        if not normalized_user_id:
+            return jsonify({"liked_movies": []}), 200
+
+        try:
+            user = metadata_store.get_user(normalized_user_id)
+            if not user:
+                return jsonify({"liked_movies": []}), 200
+
+            return jsonify({"liked_movies": user.get("liked_movies", [])}), 200
+        except Exception:
+            logger.exception("Unexpected error while fetching user liked movies.")
+            return jsonify({"error": "Unable to fetch liked movies."}), 500
+
     @app.get("/search")
     def search_movies():
         """Return matching movie suggestions from DynamoDB."""
@@ -202,7 +219,24 @@ def create_app() -> Flask:
                 metadata_by_title = {}
             recommendations = []
 
+            searched_movie_metadata = metadata_store.get_movie_by_title(movie_name)
+            searched_movie_details = get_movie_details(movie_name)
+            searched_movie = {
+                "title": movie_name,
+                "poster": searched_movie_details["poster"],
+                "overview": searched_movie_details["overview"]
+                or (
+                    searched_movie_metadata.get("overview", "")
+                    if searched_movie_metadata
+                    else ""
+                ),
+            }
+            recommendations.append(searched_movie)
+
             for title in recommended_titles:
+                if title.strip().lower() == movie_name.strip().lower():
+                    continue
+
                 metadata = metadata_by_title.get(title.strip().lower())
                 details = get_movie_details(title)
                 recommendations.append(
@@ -229,6 +263,59 @@ def create_app() -> Flask:
             return jsonify({"error": str(exc)}), 400
         except Exception:
             logger.exception("Unexpected error while generating recommendations.")
+            return jsonify({"error": "Internal server error"}), 500
+
+    @app.get("/recommend/user/<user_id>")
+    def recommend_movies_for_user(user_id: str):
+        """Return recommendations based on the user's most recently liked movie."""
+        normalized_user_id = user_id.strip()
+        if not normalized_user_id:
+            return jsonify({"error": "Missing required path parameter: user_id"}), 400
+
+        try:
+            user = metadata_store.get_user(normalized_user_id)
+            liked_movies = user.get("liked_movies", []) if user else []
+            if not liked_movies:
+                return jsonify({"based_on": "", "recommendations": []}), 200
+
+            last_liked_movie = liked_movies[-1]
+            based_on = str(last_liked_movie.get("title", "")).strip()
+            if not based_on:
+                return jsonify({"based_on": "", "recommendations": []}), 200
+
+            recommended_titles = recommender.recommend(based_on)
+            try:
+                metadata_by_title = metadata_store.get_movies_by_titles(
+                    recommended_titles
+                )
+            except Exception:
+                logger.exception(
+                    "Unable to load recommendation metadata from DynamoDB."
+                )
+                metadata_by_title = {}
+
+            recommendations = []
+            for title in recommended_titles:
+                metadata = metadata_by_title.get(title.strip().lower())
+                details = get_movie_details(title)
+                recommendations.append(
+                    {
+                        "title": title,
+                        "poster": details["poster"],
+                        "overview": details["overview"]
+                        or (metadata.get("overview", "") if metadata else ""),
+                    }
+                )
+
+            return jsonify({"based_on": based_on, "recommendations": recommendations}), 200
+        except MovieNotFoundError as exc:
+            return jsonify({"error": str(exc)}), 404
+        except RecommendationError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            logger.exception(
+                "Unexpected error while generating user-based recommendations."
+            )
             return jsonify({"error": "Internal server error"}), 500
 
     return app

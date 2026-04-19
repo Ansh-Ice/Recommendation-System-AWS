@@ -68,3 +68,45 @@ export async function likeMovie(movie, userId = "demo_user") {
 
   return data;
 }
+
+export async function fetchLikedMovies(userId = "demo_user") {
+  const response = await fetch(`${BASE_URL}/user/${encodeURIComponent(userId)}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Unable to fetch liked movies.");
+  }
+
+  return {
+    liked_movies: Array.isArray(data.liked_movies) ? data.liked_movies : [],
+  };
+}
+
+export async function fetchUserRecommendations(userId = "demo_user") {
+  const response = await fetch(
+    `${BASE_URL}/recommend/user/${encodeURIComponent(userId)}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    },
+  );
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Unable to fetch personalized recommendations.");
+  }
+
+  return {
+    based_on: data.based_on || "",
+    recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
+  };
+}

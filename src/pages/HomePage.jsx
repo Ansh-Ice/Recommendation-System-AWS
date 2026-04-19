@@ -3,10 +3,14 @@ import MovieInput from "../components/MovieInput";
 import MovieList from "../components/MovieList";
 import MovieModal from "../components/MovieModal";
 import {
+  fetchLikedMovies,
   fetchMovieSuggestions,
+  fetchUserRecommendations,
   likeMovie,
   fetchRecommendations,
 } from "../services/api";
+
+const DEMO_USER_ID = "demo_user";
 
 function HomePage() {
   const [movieName, setMovieName] = useState("");
@@ -23,6 +27,11 @@ function HomePage() {
   const [likedMovieKeys, setLikedMovieKeys] = useState([]);
   const [likeLoading, setLikeLoading] = useState(false);
   const [likeMessage, setLikeMessage] = useState("");
+  const [likedMovies, setLikedMovies] = useState([]);
+  const [personalizedRecommendations, setPersonalizedRecommendations] = useState([]);
+  const [basedOnMovie, setBasedOnMovie] = useState("");
+  const [userSectionsLoading, setUserSectionsLoading] = useState(true);
+  const [userSectionsError, setUserSectionsError] = useState("");
   const latestSuggestionRequest = useRef(0);
   const suggestionCache = useRef(new Map());
 
@@ -89,6 +98,36 @@ function HomePage() {
       controller.abort();
     };
   }, [movieName, showSuggestions]);
+
+  const loadUserSections = async () => {
+    setUserSectionsLoading(true);
+    setUserSectionsError("");
+
+    try {
+      const [likedResponse, personalizedResponse] = await Promise.all([
+        fetchLikedMovies(DEMO_USER_ID),
+        fetchUserRecommendations(DEMO_USER_ID),
+      ]);
+
+      const nextLikedMovies = likedResponse.liked_movies ?? [];
+      setLikedMovies(nextLikedMovies);
+      setLikedMovieKeys(
+        nextLikedMovies.map((movie) => movie.movie_id || movie.title || ""),
+      );
+      setBasedOnMovie(personalizedResponse.based_on || "");
+      setPersonalizedRecommendations(personalizedResponse.recommendations ?? []);
+    } catch (requestError) {
+      setUserSectionsError(
+        requestError.message || "Unable to load your movie activity right now.",
+      );
+    } finally {
+      setUserSectionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUserSections();
+  }, []);
 
   const runRecommendationSearch = async (selectedMovieName) => {
     const trimmedMovieName = selectedMovieName.trim();
@@ -163,6 +202,7 @@ function HomePage() {
         currentKeys.includes(movieKey) ? currentKeys : [...currentKeys, movieKey],
       );
       setLikeMessage("Movie saved to your likes.");
+      await loadUserSections();
     } catch (requestError) {
       setLikeMessage(requestError.message || "Unable to save this movie right now.");
     } finally {
@@ -223,6 +263,61 @@ function HomePage() {
         ) : null}
 
         <MovieList movies={recommendations} onMovieSelect={handleMovieSelect} />
+      </div>
+
+      <div className="content-panel">
+        <div className="section-heading">
+          <h2>Your Liked Movies</h2>
+          <p>Movies saved from your recent exploration.</p>
+        </div>
+
+        {userSectionsLoading ? (
+          <p className="status-message">Loading your movie activity...</p>
+        ) : null}
+
+        {!userSectionsLoading && userSectionsError ? (
+          <p className="status-message status-message--error">{userSectionsError}</p>
+        ) : null}
+
+        {!userSectionsLoading && !userSectionsError && !likedMovies.length ? (
+          <p className="status-message">
+            You have not liked any movies yet. Open a movie card and save one to get
+            started.
+          </p>
+        ) : null}
+
+        {!userSectionsLoading && !userSectionsError && likedMovies.length ? (
+          <MovieList
+            movies={likedMovies}
+            onMovieSelect={handleMovieSelect}
+            showHeading={false}
+          />
+        ) : null}
+      </div>
+
+      <div className="content-panel">
+        <div className="section-heading">
+          <h2>
+            {basedOnMovie
+              ? `Because you liked ${basedOnMovie}`
+              : "Personalized Recommendations"}
+          </h2>
+          <p>Fresh picks generated from your most recently liked movie.</p>
+        </div>
+
+        {!userSectionsLoading && !userSectionsError && !personalizedRecommendations.length ? (
+          <p className="status-message">
+            Like a movie to unlock personalized recommendations here.
+          </p>
+        ) : null}
+
+        {!userSectionsLoading && !userSectionsError && personalizedRecommendations.length ? (
+          <MovieList
+            movies={personalizedRecommendations}
+            onMovieSelect={handleMovieSelect}
+            showHeading={false}
+          />
+        ) : null}
       </div>
 
       <MovieModal
