@@ -77,15 +77,38 @@ def create_app() -> Flask:
     @app.get("/search")
     def search_movies():
         """Return matching movie suggestions from DynamoDB."""
-        query = request.args.get("query", "").strip()
-        if not query:
-            return jsonify({"error": "Missing required query parameter: query"}), 400
+        query = request.args.get("query", "").strip().lower()
         if len(query) < 2:
-            return jsonify({"query": query, "results": []}), 200
+            return jsonify({"results": []}), 200
 
         try:
-            matches = metadata_store.search_movies(query)
-            return jsonify({"query": query, "results": matches}), 200
+            movies_table = metadata_store._get_movies_table()
+            response = movies_table.scan()
+            results = []
+
+            while True:
+                for item in response.get("Items", []):
+                    title = str(item.get("title", "")).lower()
+
+                    if query in title:
+                        results.append(
+                            {
+                                "title": item.get("title"),
+                                "movie_id": item.get("movie_id"),
+                            }
+                        )
+
+                        if len(results) == 10:
+                            return jsonify({"results": results}), 200
+
+                if "LastEvaluatedKey" not in response:
+                    break
+
+                response = movies_table.scan(
+                    ExclusiveStartKey=response["LastEvaluatedKey"]
+                )
+
+            return jsonify({"results": results[:10]}), 200
         except Exception:
             logger.exception("Unexpected error while searching movie metadata.")
             return jsonify({"error": "Unable to search movie data."}), 500
