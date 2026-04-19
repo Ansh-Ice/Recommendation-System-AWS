@@ -1,6 +1,9 @@
 """Flask application entry point for the movie recommendation API."""
 
 import logging
+from functools import lru_cache
+
+import requests
 from flask_cors import CORS
 from flask import Flask, jsonify, request
 
@@ -20,6 +23,40 @@ except ImportError:
         RecommendationError,
         RecommendationService,
     )
+
+
+TMDB_API_KEY = "bed2a9ca9b73159fc720691c2485aa30"
+TMDB_SEARCH_URL = "https://api.themoviedb.org/3/search/movie"
+TMDB_POSTER_BASE_URL = "https://image.tmdb.org/t/p/w500"
+
+
+@lru_cache(maxsize=256)
+def get_poster(movie_title: str) -> str:
+    """Fetch and cache a poster URL for the supplied movie title."""
+    if not movie_title.strip():
+        return ""
+
+    try:
+        response = requests.get(
+            TMDB_SEARCH_URL,
+            params={"api_key": TMDB_API_KEY, "query": movie_title},
+            timeout=5,
+        )
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException:
+        logging.getLogger(__name__).exception(
+            "Unable to fetch poster from TMDB for '%s'.", movie_title
+        )
+        return ""
+
+    results = data.get("results", [])
+    if results:
+        poster_path = results[0].get("poster_path")
+        if poster_path:
+            return f"{TMDB_POSTER_BASE_URL}/{poster_path.lstrip('/')}"
+
+    return ""
 
 
 def create_app() -> Flask:
@@ -138,12 +175,17 @@ def create_app() -> Flask:
             for title in recommended_titles:
                 metadata = metadata_by_title.get(title.strip().lower())
                 if metadata:
+                    poster_url = metadata.get("poster_url") or get_poster(title)
                     recommendations.append(metadata)
+                    recommendations[-1]["poster"] = poster_url
+                    recommendations[-1]["poster_url"] = poster_url
                 else:
+                    poster_url = get_poster(title)
                     recommendations.append(
                         {
                             "title": title,
-                            "poster_url": "",
+                            "poster": poster_url,
+                            "poster_url": poster_url,
                             "overview": "",
                             "genres": [],
                             "tags": "",
