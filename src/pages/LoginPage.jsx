@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginUser, signupUser, setStoredUserId } from "../services/api";
+import { loginUser, signupUser } from "../services/api";
 
-function LoginPage() {
+function LoginPage({ setUser }) {
   const navigate = useNavigate();
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
@@ -23,14 +23,18 @@ function LoginPage() {
 
     try {
       if (action === "login") {
-        await loginUser(trimmedUserId, password);
-        setStoredUserId(trimmedUserId);
+        const data = await loginUser(trimmedUserId, password);
+        const authenticatedUserId = data.user_id || trimmedUserId;
+        localStorage.setItem("user_id", authenticatedUserId);
+        setUser(authenticatedUserId);
         navigate("/", { replace: true });
         return;
       }
 
-      await signupUser(trimmedUserId, password);
-      setStoredUserId(trimmedUserId);
+      const data = await signupUser(trimmedUserId, password);
+      const authenticatedUserId = data.user_id || trimmedUserId;
+      localStorage.setItem("user_id", authenticatedUserId);
+      setUser(authenticatedUserId);
       setSuccessMessage("Account created successfully.");
       navigate("/", { replace: true });
     } catch (requestError) {

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import AboutPage from "./pages/AboutPage";
@@ -6,28 +7,28 @@ import LoginPage from "./pages/LoginPage";
 import { getStoredUserId } from "./services/api";
 
 function App() {
-  const userId = getStoredUserId();
+  const [user, setUser] = useState(() => getStoredUserId());
 
   return (
     <div className="app-shell">
-      <Navbar />
+      <Navbar user={user} setUser={setUser} />
       <main className="app-main">
         <Routes>
           <Route
             path="/"
-            element={userId ? <HomePage /> : <Navigate to="/login" replace />}
+            element={user ? <HomePage user={user} setUser={setUser} /> : <Navigate to="/login" replace />}
           />
           <Route
             path="/about"
-            element={userId ? <AboutPage /> : <Navigate to="/login" replace />}
+            element={user ? <AboutPage user={user} setUser={setUser} /> : <Navigate to="/login" replace />}
           />
           <Route
             path="/login"
-            element={!userId ? <LoginPage /> : <Navigate to="/" replace />}
+            element={!user ? <LoginPage setUser={setUser} /> : <Navigate to="/" replace />}
           />
           <Route
             path="*"
-            element={<Navigate to={userId ? "/" : "/login"} replace />}
+            element={<Navigate to={user ? "/" : "/login"} replace />}
           />
         </Routes>
       </main>

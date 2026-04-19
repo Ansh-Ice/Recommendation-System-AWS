@@ -1,17 +1,16 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { clearStoredUserId, getStoredUserId } from "../services/api";
 
 const links = [
   { to: "/", label: "Home" },
   { to: "/about", label: "About" },
 ];
 
-function Navbar() {
+function Navbar({ user, setUser }) {
   const navigate = useNavigate();
-  const userId = getStoredUserId();
 
   const handleLogout = () => {
-    clearStoredUserId();
+    localStorage.removeItem("user_id");
+    setUser(null);
     navigate("/login", { replace: true });
   };
 
@@ -23,7 +22,7 @@ function Navbar() {
         </NavLink>
 
         <nav className="navbar__links" aria-label="Main navigation">
-          {userId
+          {user
             ? links.map((link) => (
                 <NavLink
                   key={link.to}
@@ -38,9 +37,9 @@ function Navbar() {
               ))
             : null}
 
-          {userId ? <span className="navbar__user">{userId}</span> : null}
+          {user ? <span className="navbar__user">{user}</span> : null}
 
-          {userId ? (
+          {user ? (
             <button className="navbar__logout" type="button" onClick={handleLogout}>
               Logout
             </button>

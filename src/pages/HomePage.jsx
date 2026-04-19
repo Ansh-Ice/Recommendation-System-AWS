@@ -6,13 +6,12 @@ import {
   fetchLikedMovies,
   fetchMovieSuggestions,
   fetchUserRecommendations,
-  getStoredUserId,
   likeMovie,
   fetchRecommendations,
 } from "../services/api";
 
-function HomePage() {
-  const userId = getStoredUserId();
+function HomePage({ user }) {
+  const userId = user;
   const [movieName, setMovieName] = useState("");
   const [recommendations, setRecommendations] = useState([]);
   const [searchedMovie, setSearchedMovie] = useState("");
