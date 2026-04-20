@@ -186,6 +186,28 @@ def create_app() -> Flask:
             logger.exception("Unexpected error while liking a movie.")
             return jsonify({"error": "Unable to store liked movie."}), 500
 
+    @app.post("/unlike")
+    def unlike_movie_endpoint():
+        """Remove a liked movie for a user in DynamoDB."""
+        payload = request.get_json(silent=True)
+        if not payload:
+            return jsonify({"error": "Request body must be valid JSON."}), 400
+
+        user_id = str(payload.get("user_id", "")).strip()
+        movie_title = str(payload.get("movie_title", "")).strip()
+
+        if not user_id or not movie_title:
+            return jsonify({"error": "Missing required field: user_id or movie_title"}), 400
+
+        try:
+            metadata_store.unlike_movie(user_id, movie_title)
+            return jsonify({"message": "Movie unliked successfully"}), 200
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            logger.exception("Unexpected error while unliking a movie.")
+            return jsonify({"error": "Unable to remove liked movie."}), 500
+
     @app.get("/user/<user_id>")
     def get_user_liked_movies(user_id: str):
         """Fetch liked movies for a user from DynamoDB."""

@@ -202,3 +202,32 @@ class DynamoDBService:
         }
         self._get_users_table().put_item(Item=user_record)
         return user_record
+
+    def unlike_movie(self, user_id: str, movie_title: str) -> Dict:
+        """Remove a liked movie for a user by title."""
+        normalized_user_id = user_id.strip()
+        if not normalized_user_id:
+            raise ValueError("user_id cannot be empty.")
+
+        existing_user = self.get_user(normalized_user_id)
+        if not existing_user:
+            return {}
+
+        liked_movies = list(existing_user.get("liked_movies", []))
+        normalized_title = movie_title.strip().lower()
+
+        filtered_movies = [
+            m for m in liked_movies
+            if str(m.get("title", "")).strip().lower() != normalized_title
+        ]
+
+        if len(filtered_movies) != len(liked_movies):
+            user_record = {
+                "user_id": normalized_user_id,
+                "password": existing_user.get("password", ""),
+                "liked_movies": filtered_movies,
+            }
+            self._get_users_table().put_item(Item=user_record)
+            return user_record
+        
+        return existing_user

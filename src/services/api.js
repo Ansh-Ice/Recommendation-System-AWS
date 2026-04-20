@@ -94,6 +94,29 @@ export async function likeMovie(movie, userId = "demo_user") {
   return data;
 }
 
+export async function unlikeMovie(movieTitle, userId = "demo_user") {
+  const resolvedUserId = userId || getStoredUserId();
+  const response = await fetch(`${BASE_URL}/unlike`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      user_id: resolvedUserId,
+      movie_title: movieTitle,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Unable to unlike this movie.");
+  }
+
+  return data;
+}
+
 export async function fetchLikedMovies(userId = "demo_user") {
   const resolvedUserId = userId || getStoredUserId();
   const response = await fetch(
