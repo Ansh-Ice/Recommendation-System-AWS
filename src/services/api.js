@@ -207,3 +207,65 @@ export async function signupUser(userId, password) {
 
   return data;
 }
+
+export async function fetchTrendingMovies() {
+  const response = await fetch(`${BASE_URL}/trending`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Unable to fetch trending movies.");
+  }
+
+  return {
+    trending: Array.isArray(data.trending) ? data.trending : [],
+  };
+}
+
+export async function fetchGenreMovies(genre) {
+  const response = await fetch(`${BASE_URL}/genre/${encodeURIComponent(genre)}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Unable to fetch genre movies.");
+  }
+
+  return {
+    results: Array.isArray(data.results) ? data.results : [],
+  };
+}
+
+export async function fetchUserMovieRecommendations(userId = "demo_user") {
+  const resolvedUserId = userId || getStoredUserId();
+  const response = await fetch(
+    `${BASE_URL}/recommend/user/${encodeURIComponent(resolvedUserId)}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    },
+  );
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Unable to fetch personalized recommendations.");
+  }
+
+  return {
+    based_on: data.based_on || "",
+    recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
+  };
+}

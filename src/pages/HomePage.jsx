@@ -9,9 +9,12 @@ import {
   likeMovie,
   unlikeMovie,
   fetchRecommendations,
+  fetchTrendingMovies,
+  fetchGenreMovies,
+  fetchUserMovieRecommendations,
 } from "../services/api";
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
-import { Sparkles, Clapperboard, Star, PlayCircle, Layers, Film, Heart } from "lucide-react";
+import { Sparkles, Clapperboard, Star, PlayCircle, Layers, Film, Heart, Flame, Zap } from "lucide-react";
 
 function HomePage({ user }) {
   const userId = user;
@@ -34,6 +37,12 @@ function HomePage({ user }) {
   const [basedOnMovie, setBasedOnMovie] = useState("");
   const [userSectionsLoading, setUserSectionsLoading] = useState(true);
   const [userSectionsError, setUserSectionsError] = useState("");
+  const [trendingMovies, setTrendingMovies] = useState([]);
+  const [actionMovies, setActionMovies] = useState([]);
+  const [comedyMovies, setComedyMovies] = useState([]);
+  const [dramaMovies, setDramaMovies] = useState([]);
+  const [genreLoading, setGenreLoading] = useState(false);
+  const [genreError, setGenreError] = useState("");
   const latestSuggestionRequest = useRef(0);
   const suggestionCache = useRef(new Map());
 
@@ -124,6 +133,33 @@ function HomePage({ user }) {
 
   useEffect(() => {
     loadUserSections();
+  }, []);
+
+  const loadBrowseSections = async () => {
+    setGenreLoading(true);
+    setGenreError("");
+
+    try {
+      const [trendingData, actionData, comedyData, dramaData] = await Promise.all([
+        fetchTrendingMovies(),
+        fetchGenreMovies("Action"),
+        fetchGenreMovies("Comedy"),
+        fetchGenreMovies("Drama"),
+      ]);
+
+      setTrendingMovies(trendingData.trending ?? []);
+      setActionMovies(actionData.results ?? []);
+      setComedyMovies(comedyData.results ?? []);
+      setDramaMovies(dramaData.results ?? []);
+    } catch (requestError) {
+      setGenreError(requestError.message || "Unable to load browse sections.");
+    } finally {
+      setGenreLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBrowseSections();
   }, []);
 
   const runRecommendationSearch = async (selectedMovieName) => {
@@ -413,6 +449,163 @@ function HomePage({ user }) {
           </div>
         )}
       </div>
+
+      {/* Browse Sections (Trending, Genres) */}
+      {!searchedMovie && (
+        <div className="container" style={{ padding: '6rem 0', borderTop: '1px solid var(--color-border)' }}>
+          {genreLoading ? (
+            <div className="text-center">
+              <p>Loading your explore feed...</p>
+            </div>
+          ) : genreError ? (
+            <div className="text-center text-gradient-warm"><p>{genreError}</p></div>
+          ) : (
+            <>
+              {/* Trending Section */}
+              {trendingMovies.length > 0 && (
+                <motion.div 
+                  initial={{ opacity: 0 }} 
+                  whileInView={{ opacity: 1 }} 
+                  viewport={{ once: true }}
+                  style={{ marginBottom: '6rem' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
+                    <Flame size={24} className="text-gradient-warm" />
+                    <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', marginBottom: 0 }}>Trending Now</h2>
+                  </div>
+                  <div style={{ overflowX: 'auto', overflowY: 'hidden', paddingBottom: '1rem', scrollBehavior: 'smooth' }}>
+                    <div style={{ display: 'flex', gap: '1.5rem', minWidth: 'min-content' }}>
+                      {trendingMovies.map((movie, idx) => (
+                        <motion.div 
+                          key={idx} 
+                          initial={{ opacity: 0, y: 20 }} 
+                          whileInView={{ opacity: 1, y: 0 }} 
+                          viewport={{ once: true }}
+                          transition={{ delay: idx * 0.05 }}
+                          onClick={() => handleMovieSelect(movie)}
+                          style={{ 
+                            minWidth: '200px', 
+                            cursor: 'pointer',
+                            flex: '0 0 auto'
+                          }}
+                          whileHover={{ scale: 1.05, y: -10 }}
+                        >
+                          <div style={{ 
+                            position: 'relative', 
+                            height: '300px', 
+                            borderRadius: 'var(--border-radius-md)',
+                            overflow: 'hidden',
+                            background: 'linear-gradient(135deg, rgba(167,139,250,0.1), rgba(236,72,153,0.1))',
+                            border: '1px solid var(--color-border)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            {movie.poster ? (
+                              <img src={movie.poster} alt={movie.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <PlayCircle size={48} opacity={0.3} />
+                            )}
+                            <div style={{ 
+                              position: 'absolute', 
+                              inset: 0, 
+                              background: 'linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.8))',
+                              display: 'flex',
+                              alignItems: 'flex-end',
+                              padding: '1rem'
+                            }}>
+                              <div>
+                                <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', margin: '0 0 0.5rem 0' }}>🔥 {movie.likes_count} Likes</p>
+                                <p style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, lineHeight: 1.2 }}>{movie.title}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Genre Sections */}
+              {[
+                { genre: 'Action', movies: actionMovies, icon: '🎯' },
+                { genre: 'Comedy', movies: comedyMovies, icon: '😂' },
+                { genre: 'Drama', movies: dramaMovies, icon: '🎬' }
+              ].map((section, sectionIdx) => (
+                trendingMovies.length > 0 || section.movies.length > 0 ? (
+                  <motion.div 
+                    key={section.genre}
+                    initial={{ opacity: 0 }} 
+                    whileInView={{ opacity: 1 }} 
+                    viewport={{ once: true }}
+                    style={{ marginBottom: '6rem' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
+                      <span style={{ fontSize: '1.5rem' }}>{section.icon}</span>
+                      <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', marginBottom: 0 }}>{section.genre} Movies</h2>
+                    </div>
+                    {section.movies.length > 0 ? (
+                      <div style={{ overflowX: 'auto', overflowY: 'hidden', paddingBottom: '1rem', scrollBehavior: 'smooth' }}>
+                        <div style={{ display: 'flex', gap: '1.5rem', minWidth: 'min-content' }}>
+                          {section.movies.slice(0, 12).map((movie, idx) => (
+                            <motion.div 
+                              key={idx} 
+                              initial={{ opacity: 0, y: 20 }} 
+                              whileInView={{ opacity: 1, y: 0 }} 
+                              viewport={{ once: true }}
+                              transition={{ delay: idx * 0.05 }}
+                              onClick={() => handleMovieSelect(movie)}
+                              style={{ 
+                                minWidth: '180px', 
+                                cursor: 'pointer',
+                                flex: '0 0 auto'
+                              }}
+                              whileHover={{ scale: 1.05, y: -10 }}
+                            >
+                              <div style={{ 
+                                position: 'relative', 
+                                height: '270px', 
+                                borderRadius: 'var(--border-radius-md)',
+                                overflow: 'hidden',
+                                background: 'linear-gradient(135deg, rgba(167,139,250,0.1), rgba(236,72,153,0.1))',
+                                border: '1px solid var(--color-border)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                {movie.poster ? (
+                                  <img src={movie.poster} alt={movie.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  <PlayCircle size={40} opacity={0.3} />
+                                )}
+                                <div style={{ 
+                                  position: 'absolute', 
+                                  inset: 0, 
+                                  background: 'linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.8))',
+                                  display: 'flex',
+                                  alignItems: 'flex-end',
+                                  padding: '1rem'
+                                }}>
+                                  <p style={{ fontSize: '0.9rem', fontWeight: 600, margin: 0, lineHeight: 1.2 }}>{movie.title}</p>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center" style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>
+                        <p>No {section.genre.toLowerCase()} movies available.</p>
+                      </div>
+                    )}
+                  </motion.div>
+                ) : null
+              ))}
+            </>
+          )}
+        </div>
+      )}
       
       {/* Footer */}
       <footer style={{ background: 'rgba(0,0,0,0.5)', borderTop: '1px solid var(--color-border)', padding: '4rem 0 2rem' }}>
