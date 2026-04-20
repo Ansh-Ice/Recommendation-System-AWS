@@ -45,6 +45,10 @@ function HomePage({ user }) {
   const [genreError, setGenreError] = useState("");
   const latestSuggestionRequest = useRef(0);
   const suggestionCache = useRef(new Map());
+  const trendingScrollRef = useRef(null);
+  const actionScrollRef = useRef(null);
+  const comedyScrollRef = useRef(null);
+  const dramaScrollRef = useRef(null);
 
   const { scrollYProgress } = useScroll();
   const heroOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
@@ -216,6 +220,15 @@ function HomePage({ user }) {
 
   const getMovieKey = (movie) => movie.movie_id || movie.title || "";
 
+  const scrollContainer = (ref, direction) => {
+    if (ref.current) {
+      ref.current.scrollBy({
+        left: direction === "left" ? -300 : 300,
+        behavior: "smooth",
+      });
+    }
+  };
+
   const handleMovieSelect = (movie) => {
     setSelectedMovie(movie);
     setLikeMessage("");
@@ -260,6 +273,15 @@ function HomePage({ user }) {
 
   return (
     <div className="page" style={{ position: 'relative', overflow: 'hidden' }}>
+      <style>{`
+        .scroll-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scroll-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
       
       {/* Background Ambience Elements */}
       <div className="bg-blob bg-blob--1" />
@@ -469,12 +491,49 @@ function HomePage({ user }) {
                   viewport={{ once: true }}
                   style={{ marginBottom: '6rem' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', paddingLeft: '20px' }}>
                     <Flame size={24} className="text-gradient-warm" />
                     <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', marginBottom: 0 }}>Trending Now</h2>
                   </div>
-                  <div style={{ overflowX: 'auto', overflowY: 'hidden', paddingBottom: '1rem', scrollBehavior: 'smooth' }}>
-                    <div style={{ display: 'flex', gap: '1.5rem', minWidth: 'min-content' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingLeft: '20px', paddingRight: '20px' }}>
+                    <button 
+                      onClick={() => scrollContainer(trendingScrollRef, "left")}
+                      style={{
+                        background: 'rgba(167, 139, 250, 0.2)',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-primary)',
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: 'var(--border-radius-sm)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.2rem',
+                        transition: 'all 0.3s ease',
+                      }}
+                      onMouseEnter={(e) => { e.target.style.background = 'rgba(167, 139, 250, 0.4)'; }}
+                      onMouseLeave={(e) => { e.target.style.background = 'rgba(167, 139, 250, 0.2)'; }}
+                    >
+                      ←
+                    </button>
+                    
+                    <div 
+                      ref={trendingScrollRef}
+                      style={{ 
+                        display: 'flex', 
+                        gap: '1.5rem', 
+                        minWidth: 'min-content',
+                        overflowX: 'auto',
+                        overflowY: 'hidden',
+                        paddingBottom: '10px',
+                        scrollBehavior: 'smooth',
+                        flex: 1,
+                        msOverflowStyle: 'none',
+                        scrollbarWidth: 'none',
+                      }}
+                      className="scroll-hide"
+                    >
                       {trendingMovies.map((movie, idx) => (
                         <motion.div 
                           key={idx} 
@@ -523,15 +582,37 @@ function HomePage({ user }) {
                         </motion.div>
                       ))}
                     </div>
+
+                    <button 
+                      onClick={() => scrollContainer(trendingScrollRef, "right")}
+                      style={{
+                        background: 'rgba(167, 139, 250, 0.2)',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-primary)',
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: 'var(--border-radius-sm)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.2rem',
+                        transition: 'all 0.3s ease',
+                      }}
+                      onMouseEnter={(e) => { e.target.style.background = 'rgba(167, 139, 250, 0.4)'; }}
+                      onMouseLeave={(e) => { e.target.style.background = 'rgba(167, 139, 250, 0.2)'; }}
+                    >
+                      →
+                    </button>
                   </div>
                 </motion.div>
               )}
 
               {/* Genre Sections */}
               {[
-                { genre: 'Action', movies: actionMovies, icon: '🎯' },
-                { genre: 'Comedy', movies: comedyMovies, icon: '😂' },
-                { genre: 'Drama', movies: dramaMovies, icon: '🎬' }
+                { genre: 'Action', movies: actionMovies, icon: '🎯', ref: actionScrollRef },
+                { genre: 'Comedy', movies: comedyMovies, icon: '😂', ref: comedyScrollRef },
+                { genre: 'Drama', movies: dramaMovies, icon: '🎬', ref: dramaScrollRef }
               ].map((section, sectionIdx) => (
                 trendingMovies.length > 0 || section.movies.length > 0 ? (
                   <motion.div 
@@ -541,13 +622,50 @@ function HomePage({ user }) {
                     viewport={{ once: true }}
                     style={{ marginBottom: '6rem' }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', paddingLeft: '20px' }}>
                       <span style={{ fontSize: '1.5rem' }}>{section.icon}</span>
                       <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', marginBottom: 0 }}>{section.genre} Movies</h2>
                     </div>
                     {section.movies.length > 0 ? (
-                      <div style={{ overflowX: 'auto', overflowY: 'hidden', paddingBottom: '1rem', scrollBehavior: 'smooth' }}>
-                        <div style={{ display: 'flex', gap: '1.5rem', minWidth: 'min-content' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingLeft: '20px', paddingRight: '20px' }}>
+                        <button 
+                          onClick={() => scrollContainer(section.ref, "left")}
+                          style={{
+                            background: 'rgba(167, 139, 250, 0.2)',
+                            border: '1px solid var(--color-border)',
+                            color: 'var(--color-primary)',
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: 'var(--border-radius-sm)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.2rem',
+                            transition: 'all 0.3s ease',
+                          }}
+                          onMouseEnter={(e) => { e.target.style.background = 'rgba(167, 139, 250, 0.4)'; }}
+                          onMouseLeave={(e) => { e.target.style.background = 'rgba(167, 139, 250, 0.2)'; }}
+                        >
+                          ←
+                        </button>
+
+                        <div 
+                          ref={section.ref}
+                          style={{ 
+                            display: 'flex', 
+                            gap: '1.5rem', 
+                            minWidth: 'min-content',
+                            overflowX: 'auto',
+                            overflowY: 'hidden',
+                            paddingBottom: '10px',
+                            scrollBehavior: 'smooth',
+                            flex: 1,
+                            msOverflowStyle: 'none',
+                            scrollbarWidth: 'none',
+                          }}
+                          className="scroll-hide"
+                        >
                           {section.movies.slice(0, 12).map((movie, idx) => (
                             <motion.div 
                               key={idx} 
@@ -593,6 +711,28 @@ function HomePage({ user }) {
                             </motion.div>
                           ))}
                         </div>
+
+                        <button 
+                          onClick={() => scrollContainer(section.ref, "right")}
+                          style={{
+                            background: 'rgba(167, 139, 250, 0.2)',
+                            border: '1px solid var(--color-border)',
+                            color: 'var(--color-primary)',
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: 'var(--border-radius-sm)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.2rem',
+                            transition: 'all 0.3s ease',
+                          }}
+                          onMouseEnter={(e) => { e.target.style.background = 'rgba(167, 139, 250, 0.4)'; }}
+                          onMouseLeave={(e) => { e.target.style.background = 'rgba(167, 139, 250, 0.2)'; }}
+                        >
+                          →
+                        </button>
                       </div>
                     ) : (
                       <div className="text-center" style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>
