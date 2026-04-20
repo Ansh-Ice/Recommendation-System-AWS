@@ -374,13 +374,18 @@ def create_app() -> Flask:
         except Exception:
             logger.exception("Unexpected error while fetching genre movies.")
             return jsonify({"error": "Unable to fetch genre movies."}), 500
+
+    @app.get("/recommend")
     def recommend_movies():
         """Return the top movie recommendations for a given title."""
         movie_name = request.args.get("movie", "").strip()
 
         # Guard against missing query parameters before touching the model.
         if not movie_name:
+            logger.warning("Recommendation requested without movie parameter")
             return jsonify({"error": "Missing required query parameter: movie"}), 400
+        
+        logger.info(f"Recommendation requested for: {movie_name}")
 
         try:
             recommended_titles = recommender.recommend(movie_name)
