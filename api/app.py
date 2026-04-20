@@ -246,6 +246,7 @@ def create_app() -> Flask:
                             {
                                 "title": item.get("title"),
                                 "movie_id": item.get("movie_id"),
+                                "overview": item.get("overview", ""),
                             }
                         )
 
@@ -264,7 +265,115 @@ def create_app() -> Flask:
             logger.exception("Unexpected error while searching movie metadata.")
             return jsonify({"error": "Unable to search movie data."}), 500
 
-    @app.get("/recommend")
+    @app.get("/trending")
+    def get_trending_movies():
+        """Return the top 10 trending movies based on user likes."""
+        try:
+            users_table = metadata_store._get_users_table()
+            movie_counts = {}
+            
+            # Scan users table with limit to control read costs
+            response = users_table.scan(ProjectionExpression="liked_movies", Limit=100)
+            
+            while True:
+                for item in response.get("Items", []):
+                    liked_movies = item.get("liked_movies", [])
+                    for movie in liked_movies:
+                        movie_title = str(movie.get("title", "")).strip().lower()
+                        if movie_title:
+                            movie_counts[movie_title] = movie_counts.get(movie_title, 0) + 1
+                
+                if "LastEvaluatedKey" not in response:
+                    break
+                
+                response = users_table.scan(
+                    ProjectionExpression="liked_movies",
+                    Limit=100,
+                    ExclusiveStartKey=response["LastEvaluatedKey"]
+                )
+            
+            # Sort by frequency and get top 10
+            top_titles = sorted(movie_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+            trending_movies = []
+            
+            # Fetch full movie details for top trending movies
+            title_list = [title for title, _ in top_titles]
+            metadata_by_title = metadata_store.get_movies_by_titles(title_list)
+            
+            for title, count in top_titles:
+                metadata = metadata_by_title.get(title.strip().lower())
+                if metadata:
+                    details = get_movie_details(title.title())
+                    trending_movies.append({
+                        "title": metadata.get("title", title.title()),
+                        "movie_id": metadata.get("movie_id", ""),
+                        "overview": details["overview"] or metadata.get("overview", ""),
+                        "poster": details["poster"],
+                        "likes_count": count
+                    })
+            
+            return jsonify({"trending": trending_movies}), 200
+        except Exception:
+            logger.exception("Unexpected error while fetching trending movies.")
+            return jsonify({"error": "Unable to fetch trending movies."}), 500
+
+    @app.get("/genre/<genre_name>")
+    def get_movies_by_genre(genre_name: str):
+        """Return top 15 movies that match the specified genre."""
+        normalized_genre = genre_name.strip().lower()
+        if not normalized_genre:
+            return jsonify({"results": []}), 200
+        
+        try:
+            movies_table = metadata_store._get_movies_table()
+            matching_movies = []
+            
+            # Scan movies with limit to control read costs
+            response = movies_table.scan(
+                ProjectionExpression="movie_id, title, genres, tags, overview, poster_url",
+                Limit=100
+            )
+            
+            while len(matching_movies) < 15:
+                for item in response.get("Items", []):
+                    # Check both tags and genres for the genre name
+                    tags = item.get("tags", [])
+                    genres = item.get("genres", [])
+                    
+                    # Ensure tags and genres are lists
+                    if isinstance(tags, str):
+                        tags = [tags]
+                    if isinstance(genres, str):
+                        genres = [genres]
+                    
+                    combined = [str(t).lower() for t in tags] + [str(g).lower() for g in genres]
+                    
+                    if any(normalized_genre in str(tag) for tag in combined):
+                        title = item.get("title", "")
+                        details = get_movie_details(title)
+                        matching_movies.append({
+                            "title": title,
+                            "movie_id": item.get("movie_id", ""),
+                            "overview": details["overview"] or item.get("overview", ""),
+                            "poster": details["poster"]
+                        })
+                        
+                        if len(matching_movies) >= 15:
+                            break
+                
+                if "LastEvaluatedKey" not in response or len(matching_movies) >= 15:
+                    break
+                
+                response = movies_table.scan(
+                    ProjectionExpression="movie_id, title, genres, tags, overview, poster_url",
+                    Limit=100,
+                    ExclusiveStartKey=response["LastEvaluatedKey"]
+                )
+            
+            return jsonify({"results": matching_movies[:15]}), 200
+        except Exception:
+            logger.exception("Unexpected error while fetching genre movies.")
+            return jsonify({"error": "Unable to fetch genre movies."}), 500
     def recommend_movies():
         """Return the top movie recommendations for a given title."""
         movie_name = request.args.get("movie", "").strip()
@@ -290,6 +399,7 @@ def create_app() -> Flask:
             searched_movie_details = get_movie_details(movie_name)
             searched_movie = {
                 "title": movie_name,
+                "movie_id": searched_movie_metadata.get("movie_id", "") if searched_movie_metadata else "",
                 "poster": searched_movie_details["poster"],
                 "overview": searched_movie_details["overview"]
                 or (
@@ -309,6 +419,7 @@ def create_app() -> Flask:
                 recommendations.append(
                     {
                         "title": title,
+                        "movie_id": metadata.get("movie_id", "") if metadata else "",
                         "poster": details["poster"],
                         "overview": details["overview"]
                         or (metadata.get("overview", "") if metadata else ""),
@@ -368,6 +479,7 @@ def create_app() -> Flask:
                 recommendations.append(
                     {
                         "title": title,
+                        "movie_id": metadata.get("movie_id", "") if metadata else "",
                         "poster": details["poster"],
                         "overview": details["overview"]
                         or (metadata.get("overview", "") if metadata else ""),
